@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">CoordinatorDemo</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+
+    <string name="appbar_spring_behavior">android.support.design.widget.AppBarLayoutSpringBehavior</string>
+    <string name="appbar_fling_fix_behavior">android.support.design.widget.AppBarFlingFixBehavior</string>
+</resources>
