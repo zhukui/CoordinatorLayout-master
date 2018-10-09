@@ -4,5 +4,4 @@
 
 参考链接
 https://github.com/ToDou/appbarlayout-spring-behavior
-
 http://gundumw100.iteye.com/blog/2366683
