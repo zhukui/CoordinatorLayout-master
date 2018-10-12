@@ -10,17 +10,26 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
+
 import java.util.List;
 
 import static android.support.v4.view.ViewCompat.TYPE_NON_TOUCH;
 
+/**
+ * AppBarLayout下拉弹簧形变
+ */
 public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
 
+    /**
+     * 形变偏移回调
+     */
     public interface SpringOffsetCallback {
         void springCallback(int offset);
     }
 
+    //插值偏移
     private int mOffsetDelta;
+    //滑动偏移量
     private int mOffsetSpring;
 
     //恢复动画
@@ -29,6 +38,7 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
     private ValueAnimator mFlingAnimator;
     //头部高度
     private int mPreHeadHeight;
+    //下拉滑动便宜量
     private SpringOffsetCallback mSpringOffsetCallback;
 
     public AppBarLayoutSpringBehavior() {
@@ -46,15 +56,6 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
         }
         resetFlingAnimator();
         return started;
-    }
-
-    private void resetFlingAnimator() {
-        if (mFlingAnimator != null) {
-            if (mFlingAnimator.isRunning()) {
-                mFlingAnimator.cancel();
-            }
-            mFlingAnimator = null;
-        }
     }
 
     @Override
@@ -75,12 +76,19 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
         checkShouldSpringRecover(coordinatorLayout, abl);
     }
 
+
+    /**
+     * 检查是否重置动画
+     */
     private void checkShouldSpringRecover(CoordinatorLayout coordinatorLayout, AppBarLayout abl) {
         if (mOffsetSpring > 0) {
             animateRecoverBySpring(coordinatorLayout, abl);
         }
     }
 
+    /**
+     * 下拉形变动画
+     */
     private void animateFlingSpring(final CoordinatorLayout coordinatorLayout, final AppBarLayout abl, int originNew) {
         if (mFlingAnimator == null) {
             mFlingAnimator = new ValueAnimator();
@@ -108,6 +116,21 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
         mFlingAnimator.start();
     }
 
+    /**
+     * 重置动画
+     */
+    private void resetFlingAnimator() {
+        if (mFlingAnimator != null) {
+            if (mFlingAnimator.isRunning()) {
+                mFlingAnimator.cancel();
+            }
+            mFlingAnimator = null;
+        }
+    }
+
+    /**
+     * 恢复动画
+     */
     private void animateRecoverBySpring(final CoordinatorLayout coordinatorLayout, final AppBarLayout abl) {
         if (mSpringRecoverAnimator == null) {
             mSpringRecoverAnimator = new ValueAnimator();
@@ -128,10 +151,6 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
         mSpringRecoverAnimator.start();
     }
 
-    private static boolean checkFlag(final int flags, final int check) {
-        return (flags & check) == check;
-    }
-
     @Override
     public boolean onMeasureChild(CoordinatorLayout parent, AppBarLayout child, int parentWidthMeasureSpec, int widthUsed, int parentHeightMeasureSpec, int heightUsed) {
         boolean b = super.onMeasureChild(parent, child, parentWidthMeasureSpec, widthUsed, parentHeightMeasureSpec, heightUsed);
@@ -143,6 +162,7 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
 
     /**
      * appBarLayout变化高度
+     *
      * @param appBarLayout
      * @return
      */
@@ -160,7 +180,7 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
 
     @Override
     void onFlingFinished(CoordinatorLayout parent, AppBarLayout layout) {
-        super.onFlingFinished(parent,layout);
+        super.onFlingFinished(parent, layout);
         animateRecoverBySpring(parent, layout);
     }
 
@@ -170,6 +190,74 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
         return setHeaderTopBottomOffset(coordinatorLayout, appBarLayout, newOffset, minOffset, maxOffset, -1);
     }
 
+    /**
+     * 更新滚动
+     */
+    private int updateSpringByScroll(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int type, int originNew) {
+        int consumed;
+        if (appBarLayout.getHeight() >= mPreHeadHeight && type == 1) {
+            if (mFlingAnimator == null) {
+                animateFlingSpring(coordinatorLayout, appBarLayout, originNew);
+            }
+            return originNew;
+        }
+        updateSpringOffsetByscroll(coordinatorLayout, appBarLayout, mOffsetSpring + originNew / 3);
+        consumed = getTopBottomOffsetForScrollingSibling() - originNew;
+
+        return consumed;
+    }
+
+    @Override
+    int getTopBottomOffsetForScrollingSibling() {
+        return getTopAndBottomOffset() + mOffsetDelta;
+    }
+
+    /**
+     * 下拉等操作更改头部高度
+     */
+    private void updateSpringOffsetByscroll(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int offset) {
+        if (mSpringRecoverAnimator != null && mSpringRecoverAnimator.isRunning()) {
+            mSpringRecoverAnimator.cancel();
+        }
+        updateSpringHeaderHeight(coordinatorLayout, appBarLayout, offset);
+    }
+
+    /**
+     * 改变头部距离
+     *
+     * @param coordinatorLayout
+     * @param appBarLayout
+     * @param offset
+     */
+    private void updateSpringHeaderHeight(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int offset) {
+        if (appBarLayout.getHeight() < mPreHeadHeight || offset < 0) return;
+        mOffsetSpring = offset;
+        if (mSpringOffsetCallback != null) {
+            mSpringOffsetCallback.springCallback(mOffsetSpring);
+        }
+        CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) appBarLayout.getLayoutParams();
+        layoutParams.height = mPreHeadHeight + offset;
+        appBarLayout.setLayoutParams(layoutParams);
+        coordinatorLayout.dispatchDependentViewsChanged(appBarLayout);
+    }
+
+    public int getOffsetSpring() {
+        return mOffsetSpring;
+    }
+
+    public SpringOffsetCallback getSpringOffsetCallback() {
+        return mSpringOffsetCallback;
+    }
+
+    public void setSpringOffsetCallback(SpringOffsetCallback springOffsetCallback) {
+        mSpringOffsetCallback = springOffsetCallback;
+    }
+
+    //=================以下AppBarLayout源码部分，由于private只能复制方法修改，大神厉害===================
+
+    /**
+     * AppBarLayout源码，修改其高度、偏移等
+     */
     int setHeaderTopBottomOffset(CoordinatorLayout coordinatorLayout,
                                  AppBarLayout appBarLayout, int newOffset, int minOffset, int maxOffset, int type) {
         int originNew = newOffset;
@@ -215,25 +303,6 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
             mOffsetDelta = 0;
         }
         return consumed;
-    }
-
-    private int updateSpringByScroll(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int type, int originNew) {
-        int consumed;
-        if (appBarLayout.getHeight() >= mPreHeadHeight && type == 1) {
-            if (mFlingAnimator == null){
-                animateFlingSpring(coordinatorLayout, appBarLayout, originNew);
-            }
-            return originNew;
-        }
-        updateSpringOffsetByscroll(coordinatorLayout, appBarLayout, mOffsetSpring + originNew / 3);
-        consumed = getTopBottomOffsetForScrollingSibling() - originNew;
-
-        return consumed;
-    }
-
-    @Override
-    int getTopBottomOffsetForScrollingSibling() {
-        return getTopAndBottomOffset() + mOffsetDelta;
     }
 
     private int interpolateOffset(AppBarLayout layout, final int offset) {
@@ -309,43 +378,6 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
             }
         }
         return null;
-    }
-
-    private void updateSpringOffsetByscroll(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int offset) {
-        if (mSpringRecoverAnimator != null && mSpringRecoverAnimator.isRunning()){
-            mSpringRecoverAnimator.cancel();
-        }
-        updateSpringHeaderHeight(coordinatorLayout, appBarLayout, offset);
-    }
-
-    /**
-     * 改变头部距离
-     * @param coordinatorLayout
-     * @param appBarLayout
-     * @param offset
-     */
-    private void updateSpringHeaderHeight(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int offset) {
-        if (appBarLayout.getHeight() < mPreHeadHeight || offset < 0) return;
-        mOffsetSpring = offset;
-        if (mSpringOffsetCallback != null) {
-            mSpringOffsetCallback.springCallback(mOffsetSpring);
-        }
-        CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) appBarLayout.getLayoutParams();
-        layoutParams.height = mPreHeadHeight + offset;
-        appBarLayout.setLayoutParams(layoutParams);
-        coordinatorLayout.dispatchDependentViewsChanged(appBarLayout);
-    }
-
-    public int getOffsetSpring() {
-        return mOffsetSpring;
-    }
-
-    public SpringOffsetCallback getSpringOffsetCallback() {
-        return mSpringOffsetCallback;
-    }
-
-    public void setSpringOffsetCallback(SpringOffsetCallback springOffsetCallback) {
-        mSpringOffsetCallback = springOffsetCallback;
     }
 
     private void updateAppBarLayoutDrawableState(final CoordinatorLayout parent,
