@@ -9,6 +9,7 @@ import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 
 
 /**
@@ -29,6 +30,9 @@ public class AppbarZoomBehavior extends AppBarLayout.Behavior {
     private float mScaleValue;//图片缩放比例
     private int mLastBottom;//Appbar的变化高度
     private boolean isAnimate;//是否做动画标志
+
+    private ViewGroup middleLayout;//个人信息布局
+    private int mMiddleHeight;
 
     private boolean a;
 
@@ -51,9 +55,13 @@ public class AppbarZoomBehavior extends AppBarLayout.Behavior {
     private void init(AppBarLayout abl) {
         abl.setClipChildren(false);
         mAppbarHeight = abl.getHeight();
-        mScaleView = abl.findViewById(R.id.head_layout);
+        mScaleView = abl.findViewById(R.id.head_img_bg);
+        middleLayout = abl.findViewById(R.id.middle_layout);
         if (mScaleView != null) {
             mImageViewHeight = mScaleView.getHeight();
+        }
+        if (middleLayout != null) {
+            mMiddleHeight = middleLayout.getHeight();
         }
     }
 

@@ -33,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout head_layout;
     private TabLayout toolbar_tab;
     private ViewPager main_vp_container;
+    private ImageView head_img_bg;
     private CollapsingToolbarLayout mCollapsingToolbarLayout;
     private CoordinatorLayout root_layout;
 
@@ -50,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
                 onBackPressed();
             }
         });
+        head_img_bg = (ImageView) findViewById(R.id.head_img_bg);
         head_layout = (LinearLayout) findViewById(R.id.head_layout);
         root_layout = (CoordinatorLayout) findViewById(R.id.root_layout);
         //使用CollapsingToolbarLayout必须把title设置到CollapsingToolbarLayout上，设置到Toolbar上则不会显示

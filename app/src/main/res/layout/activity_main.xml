@@ -36,6 +36,7 @@
                 app:layout_collapseParallaxMultiplier="0.7">
 
                 <ImageView
+                    android:id="@+id/head_img_bg"
                     android:layout_width="match_parent"
                     android:layout_height="0dp"
                     android:layout_weight="1"
@@ -45,6 +46,7 @@
                     android:src="@mipmap/banner_bg"/>
 
                 <RelativeLayout
+                    android:id="@+id/middle_layout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
