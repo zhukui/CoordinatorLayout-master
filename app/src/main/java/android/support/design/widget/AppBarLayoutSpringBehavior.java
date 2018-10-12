@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.os.Build;
-import android.support.annotation.VisibleForTesting;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
 import android.view.View;
@@ -16,21 +15,21 @@ import java.util.List;
 import static android.support.v4.view.ViewCompat.TYPE_NON_TOUCH;
 
 public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
-    private static final String TAG = "SpringBehav";
-    private static final int MAX_OFFSET_ANIMATION_DURATION = 600; // ms
 
     public interface SpringOffsetCallback {
         void springCallback(int offset);
     }
 
     private int mOffsetDelta;
-
     private int mOffsetSpring;
+
+    //恢复动画
     private ValueAnimator mSpringRecoverAnimator;
+    //滑动时动画
     private ValueAnimator mFlingAnimator;
+    //头部高度
     private int mPreHeadHeight;
     private SpringOffsetCallback mSpringOffsetCallback;
-    private ValueAnimator mOffsetAnimator;
 
     public AppBarLayoutSpringBehavior() {
     }
@@ -77,7 +76,9 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
     }
 
     private void checkShouldSpringRecover(CoordinatorLayout coordinatorLayout, AppBarLayout abl) {
-        if (mOffsetSpring > 0) animateRecoverBySpring(coordinatorLayout, abl);
+        if (mOffsetSpring > 0) {
+            animateRecoverBySpring(coordinatorLayout, abl);
+        }
     }
 
     private void animateFlingSpring(final CoordinatorLayout coordinatorLayout, final AppBarLayout abl, int originNew) {
@@ -140,6 +141,11 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
         return b;
     }
 
+    /**
+     * appBarLayout变化高度
+     * @param appBarLayout
+     * @return
+     */
     int getHeaderExpandedHeight(AppBarLayout appBarLayout) {
         int range = 0;
         for (int i = 0, z = appBarLayout.getChildCount(); i < z; i++) {
@@ -154,105 +160,8 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
 
     @Override
     void onFlingFinished(CoordinatorLayout parent, AppBarLayout layout) {
-        snapToChildIfNeeded(parent, layout);
+        super.onFlingFinished(parent,layout);
         animateRecoverBySpring(parent, layout);
-    }
-
-    private void snapToChildIfNeeded(CoordinatorLayout coordinatorLayout, AppBarLayout abl) {
-        final int offset = getTopBottomOffsetForScrollingSibling();
-        final int offsetChildIndex = getChildIndexOnOffset(abl, offset);
-        if (offsetChildIndex >= 0) {
-            final View offsetChild = abl.getChildAt(offsetChildIndex);
-            final AppBarLayout.LayoutParams lp = (AppBarLayout.LayoutParams) offsetChild.getLayoutParams();
-            final int flags = lp.getScrollFlags();
-
-            if ((flags & AppBarLayout.LayoutParams.FLAG_SNAP) == AppBarLayout.LayoutParams.FLAG_SNAP) {
-                // We're set the snap, so animate the offset to the nearest edge
-                int snapTop = -offsetChild.getTop();
-                int snapBottom = -offsetChild.getBottom();
-
-                if (offsetChildIndex == abl.getChildCount() - 1) {
-                    // If this is the last child, we need to take the top inset into account
-                    snapBottom += abl.getTopInset();
-                }
-
-                if (checkFlag(flags, AppBarLayout.LayoutParams.SCROLL_FLAG_EXIT_UNTIL_COLLAPSED)) {
-                    // If the view is set only exit until it is collapsed, we'll abide by that
-                    snapBottom += ViewCompat.getMinimumHeight(offsetChild);
-                } else if (checkFlag(flags, AppBarLayout.LayoutParams.FLAG_QUICK_RETURN
-                        | AppBarLayout.LayoutParams.SCROLL_FLAG_ENTER_ALWAYS)) {
-                    // If it's set to always enter collapsed, it actually has two states. We
-                    // select the state and then snap within the state
-                    final int seam = snapBottom + ViewCompat.getMinimumHeight(offsetChild);
-                    if (offset < seam) {
-                        snapTop = seam;
-                    } else {
-                        snapBottom = seam;
-                    }
-                }
-
-                final int newOffset = offset < (snapBottom + snapTop) / 2
-                        ? snapBottom
-                        : snapTop;
-                animateOffsetTo(coordinatorLayout, abl,
-                        clamp(newOffset, -abl.getTotalScrollRange(), 0), 0);
-            }
-        }
-    }
-
-    private void animateOffsetTo(final CoordinatorLayout coordinatorLayout,
-                                 final AppBarLayout child, final int offset, float velocity) {
-        final int distance = Math.abs(getTopBottomOffsetForScrollingSibling() - offset);
-
-        final int duration;
-        velocity = Math.abs(velocity);
-        if (velocity > 0) {
-            duration = 3 * Math.round(1000 * (distance / velocity));
-        } else {
-            final float distanceRatio = (float) distance / child.getHeight();
-            duration = (int) ((distanceRatio + 1) * 150);
-        }
-
-        animateOffsetWithDuration(coordinatorLayout, child, offset, duration);
-    }
-
-    private void animateOffsetWithDuration(final CoordinatorLayout coordinatorLayout,
-                                           final AppBarLayout child, final int offset, final int duration) {
-        final int currentOffset = getTopBottomOffsetForScrollingSibling();
-        if (currentOffset == offset) {
-            if (mOffsetAnimator != null && mOffsetAnimator.isRunning()) {
-                mOffsetAnimator.cancel();
-            }
-            return;
-        }
-
-        if (mOffsetAnimator == null) {
-            mOffsetAnimator = new ValueAnimator();
-            mOffsetAnimator.setInterpolator(AnimationUtils.DECELERATE_INTERPOLATOR);
-            mOffsetAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animator) {
-                    setHeaderTopBottomOffset(coordinatorLayout, child,
-                            (Integer) animator.getAnimatedValue());
-                }
-            });
-        } else {
-            mOffsetAnimator.cancel();
-        }
-
-        mOffsetAnimator.setDuration(Math.min(duration, MAX_OFFSET_ANIMATION_DURATION));
-        mOffsetAnimator.setIntValues(currentOffset, offset);
-        mOffsetAnimator.start();
-    }
-
-    private int getChildIndexOnOffset(AppBarLayout abl, final int offset) {
-        for (int i = 0, count = abl.getChildCount(); i < count; i++) {
-            View child = abl.getChildAt(i);
-            if (child.getTop() <= -offset && child.getBottom() >= -offset) {
-                return i;
-            }
-        }
-        return -1;
     }
 
     @Override
@@ -311,8 +220,9 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
     private int updateSpringByScroll(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int type, int originNew) {
         int consumed;
         if (appBarLayout.getHeight() >= mPreHeadHeight && type == 1) {
-            if (mFlingAnimator == null)
+            if (mFlingAnimator == null){
                 animateFlingSpring(coordinatorLayout, appBarLayout, originNew);
+            }
             return originNew;
         }
         updateSpringOffsetByscroll(coordinatorLayout, appBarLayout, mOffsetSpring + originNew / 3);
@@ -402,8 +312,9 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
     }
 
     private void updateSpringOffsetByscroll(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int offset) {
-        if (mSpringRecoverAnimator != null && mSpringRecoverAnimator.isRunning())
+        if (mSpringRecoverAnimator != null && mSpringRecoverAnimator.isRunning()){
             mSpringRecoverAnimator.cancel();
+        }
         updateSpringHeaderHeight(coordinatorLayout, appBarLayout, offset);
     }
 
@@ -416,7 +327,9 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
     private void updateSpringHeaderHeight(CoordinatorLayout coordinatorLayout, AppBarLayout appBarLayout, int offset) {
         if (appBarLayout.getHeight() < mPreHeadHeight || offset < 0) return;
         mOffsetSpring = offset;
-        if (mSpringOffsetCallback != null) mSpringOffsetCallback.springCallback(mOffsetSpring);
+        if (mSpringOffsetCallback != null) {
+            mSpringOffsetCallback.springCallback(mOffsetSpring);
+        }
         CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) appBarLayout.getLayoutParams();
         layoutParams.height = mPreHeadHeight + offset;
         appBarLayout.setLayoutParams(layoutParams);
@@ -433,11 +346,6 @@ public class AppBarLayoutSpringBehavior extends AppBarLayout.Behavior {
 
     public void setSpringOffsetCallback(SpringOffsetCallback springOffsetCallback) {
         mSpringOffsetCallback = springOffsetCallback;
-    }
-
-    @VisibleForTesting
-    boolean isOffsetAnimatorRunning() {
-        return mOffsetAnimator != null && mOffsetAnimator.isRunning();
     }
 
     private void updateAppBarLayoutDrawableState(final CoordinatorLayout parent,
